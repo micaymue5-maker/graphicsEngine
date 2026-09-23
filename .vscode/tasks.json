@@ -1,0 +1,27 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build C project",
+            "type": "process",
+            "command": "/usr/bin/make",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "/opt/homebrew/bin:${env:PATH}" }
+            },
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Run C project",
+            "type": "process",
+            "command": "/usr/bin/make",
+            "args": ["run"],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "/opt/homebrew/bin:${env:PATH}" }
+            },
+            "problemMatcher": ["$gcc"]
+        }
+    ]
+}
