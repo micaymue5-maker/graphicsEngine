@@ -14,6 +14,5 @@ mesh get_cube(void);
 
 // Draw a triangle already projected and converted to screen-pixel coordinates.
 void draw_triangle(const triangle *obj, Color colour);
-void fill_triangle(const triangle *obj, Color colour);
-
+void fill_triangle(triangle *obj, Color colour);
 #endif

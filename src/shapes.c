@@ -2,6 +2,7 @@
 #include "raster.h"
 
 #include <math.h>
+#include <stdio.h>
 
 mesh get_cube(void)
 {
@@ -98,40 +99,72 @@ void draw_triangle(const triangle *obj, Color colour)
 
 void fill_top_flat_triangle(const triangle *obj, Color colour)
 {
-    float invslope1 = (obj->p[2].x - obj->p[0].x) / (obj->p[2].y - obj->p[0].y);
-    float invslope2 = (obj->p[2].x - obj->p[1].x) / (obj->p[2].y - obj->p[1].y);
-
-    float curx1, curx2 = obj->p[2].x;
-
-    for (int scanLineY = obj->p[2].y; scanLineY > obj->p[0].y; scanLineY--)
+    if ((obj->p[2].y - obj->p[0].y) != 0 && (obj->p[2].y - obj->p[1].y) != 0)
     {
-        raster_draw_line((int)curx1, scanLineY, (int)curx2, scanLineY, colour);
-        curx1 -= invslope1;
-        curx2 -= invslope2;
+        float invslope1 = (obj->p[2].x - obj->p[0].x) / (obj->p[2].y - obj->p[0].y);
+        float invslope2 = (obj->p[2].x - obj->p[1].x) / (obj->p[2].y - obj->p[1].y);
+
+        // account for fractional y-coordinates
+        float curx1 = obj->p[2].x + (floorf(obj->p[2].y) - obj->p[2].y) * invslope1;
+        float curx2 = obj->p[2].x + (floorf(obj->p[2].y) - obj->p[2].y) * invslope2;
+
+        for (int scanLineY = floorf(obj->p[2].y); scanLineY > obj->p[0].y; scanLineY--)
+        {
+            // apply rounding and check for empty span between rounded values
+            if (curx1 > curx2 && floorf(curx1)-ceilf(curx2) >= 0) 
+            {
+                raster_draw_line((int)floorf(curx1), scanLineY, (int)ceilf(curx2), scanLineY, colour);
+            }
+
+            else if (ceilf(curx1) - floorf(curx2) <= 0)           
+            {
+                raster_draw_line((int)ceilf(curx1), scanLineY, (int)floorf(curx2), scanLineY, colour);
+            }
+            curx1 -= invslope1;
+            curx2 -= invslope2;
+        }
+    } else {
+        raster_draw_line(
+            (int)roundf(obj->p[0].x), (int)roundf(obj->p[0].y), 
+            (int)roundf(obj->p[1].x), (int)roundf(obj->p[1].y),
+            colour);
     }
 }
 
 void fill_bottom_flat_triangle(const triangle *obj, Color colour)
 {
-    float invslope1 = (obj->p[1].x - obj->p[0].x) / (obj->p[1].y - obj->p[0].y);
-    float invslope2 = (obj->p[2].x - obj->p[0].x) / (obj->p[2].y - obj->p[0].y);
-
-    float curx1, curx2 = obj->p[0].x;
-
-    for (int scanLineY = obj->p[0].y; scanLineY > obj->p[1].y; scanLineY--)
+    if ((obj->p[1].y - obj->p[0].y) != 0 && (obj->p[2].y - obj->p[0].y) != 0)
     {
-        raster_draw_line((int)curx1, scanLineY, (int)curx2, scanLineY, colour);
-        curx1 += invslope1;
-        curx2 += invslope2;
+        float invslope2 = (obj->p[1].x - obj->p[0].x) / (obj->p[1].y - obj->p[0].y);
+        float invslope1 = (obj->p[2].x - obj->p[0].x) / (obj->p[2].y - obj->p[0].y);
+
+        // account for fractional y-coordinates
+        float curx1 = obj->p[2].x + (floorf(obj->p[1].y) - obj->p[2].y) * invslope1;
+        float curx2 = obj->p[1].x + (floorf(obj->p[1].y) - obj->p[1].y) * invslope2;
+
+        for (int scanLineY = floorf(obj->p[1].y); scanLineY > obj->p[0].y; scanLineY--)
+        {
+            if (curx1 > curx2) {raster_draw_line((int)floorf(curx1), scanLineY, (int)ceilf(curx2), scanLineY, colour);}
+            else               {raster_draw_line((int)ceilf(curx1), scanLineY, (int)floorf(curx2), scanLineY, colour);}
+            curx1 -= invslope1;
+            curx2 -= invslope2;
+        }
+    } else {
+        raster_draw_line(
+            (int)roundf(obj->p[0].x), (int)roundf(obj->p[0].y), 
+            (int)roundf(obj->p[1].x), (int)roundf(obj->p[1].y),
+            colour);
     }
 }
 
 void sort_vertices_ascending_by_y(triangle *obj)
 {
-    float vec1 = obj->p[0].y;
-    float vec2 = obj->p[1].y;
-    float vec3 = obj->p[2].y;
     vec3d temp;
+    if (obj->p[1].y > obj->p[2].y) {
+        temp = obj->p[2];
+        obj->p[2] = obj->p[1];
+        obj->p[1] = temp;
+    }
     if (obj->p[0].y > obj->p[1].y) {
         temp = obj->p[1];
         obj->p[1] = obj->p[0];
@@ -144,12 +177,25 @@ void sort_vertices_ascending_by_y(triangle *obj)
     }
 }
 
-void fill_triangle(const triangle *obj, Color colour)
+void fill_triangle(triangle *obj, Color colour)
 {
     sort_vertices_ascending_by_y(obj);
 
+    // check for horizontal line
+    if ( obj->p[0].y == obj->p[2].y )
+    {
+        raster_draw_line(
+            (int)roundf(obj->p[0].x), (int)roundf(obj->p[0].y), 
+            (int)roundf(obj->p[1].x), (int)roundf(obj->p[1].y),
+            colour);
+        raster_draw_line(
+            (int)roundf(obj->p[2].x), (int)roundf(obj->p[2].y), 
+            (int)roundf(obj->p[1].x), (int)roundf(obj->p[1].y),
+            colour);
+    }
+
     // check for trivial case of bottom-flat triangle
-    if (obj->p[1].y == obj->p[2].y) 
+    else if (obj->p[1].y == obj->p[2].y) 
     {
         fill_bottom_flat_triangle(obj, colour);
     }
@@ -159,10 +205,10 @@ void fill_triangle(const triangle *obj, Color colour)
     {
         fill_top_flat_triangle(obj, colour);
     }
-    else
+    else 
     {
         vec3d v4 = {
-            .x = (int)(obj->p[0].x + ( (obj->p[1].y - obj->p[0].y) / (obj->p[2].y - obj->p[0].y) ) * (obj->p[2].x - obj->p[0].x)),
+            .x = obj->p[0].x + ( (obj->p[1].y - obj->p[0].y) / (obj->p[2].y - obj->p[0].y) ) * (obj->p[2].x - obj->p[0].x),
             .y = obj->p[1].y,
             .z = 0.0f
         };
