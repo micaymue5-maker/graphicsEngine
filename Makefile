@@ -26,3 +26,19 @@ run: $(TARGET)
 	./$(TARGET)
 
 -include $(DEPS)
+
+# Headless checks replace raylib's window/pixel functions with capture stubs.
+.PHONY: test
+test: build/test_engine
+	./build/test_engine
+
+build/main_test.o: src/main.c Makefile | build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -Dmain=demo_main -c $< -o $@
+
+build/test_engine.o: tests/test_engine.c Makefile | build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
+
+build/test_engine: build/test_engine.o build/main_test.o build/raster.o build/shapes.o build/vectors.o
+	$(CC) $(LDFLAGS) $^ -lm -o $@
+
+-include build/main_test.d build/test_engine.d

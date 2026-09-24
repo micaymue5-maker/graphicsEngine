@@ -1,185 +1,117 @@
-# Pixel shapes in C
+# Graphics Engine — Triangle Wireframe in C
 
-A small C17 project for learning to draw shapes by choosing individual pixels.
-The current demo opens an 800 x 600 window and draws a rotating wireframe cube.
-Pixel drawing lives in `src/raster.c`; shape construction and rotation live in
-`src/shapes.c`.
+A C17 learning project following javidx9's 3D Graphics Engine series. The current
+stage draws an automatically rotating, perspective-projected cube made from
+12 triangles. Raylib supplies the window and `DrawPixel`; the line rasterisation,
+transformations and projection are implemented in this project.
 
 ## Build and run
 
-This Mac already has Apple Clang, Make, Homebrew raylib, and pkg-config installed.
-From Terminal:
+Requires a C17 compiler, Make, raylib and pkg-config. On the configured Apple
+Silicon Mac, raylib and pkg-config are installed through Homebrew.
 
 ```sh
-cd /Users/nick/Desktop/raylibProject
 make
 make run
 ```
 
-`make` builds `build/pixel_shapes`. `make run` builds if needed, then launches it.
-Press Escape or use the window's close button to exit.
-Use `make -B` if you need to force a complete rebuild.
+Run `make test` for headless checks of triangle storage, matrix transforms,
+projection, cube winding, line rasterisation and 800 frames of the actual demo
+loop. The tests capture `DrawPixel` calls without opening a raylib window.
 
-In VS Code, open this folder and use Cmd+Shift+B to build. Use
-Terminal > Run Task > Run C project to build and run. These tasks use the
-Makefile; building just the active C file will omit the other source files and
-raylib linker settings.
+Run these commands in the project folder. The executable is
+`build/pixel_shapes`. Press Escape or close the window to quit. Rotation is
+automatic and uses elapsed time; there are no Q/E/W/S/A/D controls.
 
-## Three-axis rotation
+In VS Code, open this folder, use Cmd+Shift+B to build, or choose
+Terminal > Run Task > Run C project. Build the whole project rather than just the
+active source file. Generated files under `build/` are ignored by Git.
 
-Hold the keys below to change the cube's orientation:
+## Types and ownership
 
-| Keys | Axis | Angle field |
-| --- | --- | --- |
-| Q / E | X | `psi` (+ / -) |
-| W / S | Y | `theta` (+ / -) |
-| A / D | Z | `phi` (+ / -) |
+- `vec3d`: a point/vector with floating-point `x`, `y`, `z` components.
+- `triangle`: exactly three `vec3d` vertices in `p[3]`.
+- `mat4x4`: a 4-by-4 transformation matrix, following the tutorial's layout.
+- `TriVector`: a growable triangle array (`data`, `size`, `capacity`), the C
+  equivalent of the tutorial's `std::vector<triangle>`.
+- `mesh`: owns a `TriVector tris`. The lowercase name avoids raylib's `Mesh` type.
 
-Each held key changes its angle by 10 degrees per frame, with the current target
-of 20 FPS. Speed therefore depends on the actual frame rate.
+`get_cube()` creates a mesh using the original SOUTH, EAST, NORTH, WEST, TOP and
+BOTTOM face ordering. It copies the fixed cube triangles into owned heap storage,
+so it never returns a pointer to a local array. Release the mesh with
+`vector_free(&cube.tris)` once finished. Do not copy an owning mesh and then free
+both copies. Triangle values themselves contain no pointers and can be copied.
 
-`DoubleAngle3` in `include/vectors.h` stores all three angles in degrees.
-`rotate_vector`, `rotate_rect`, and `rotate_triangle` accept this type. Rectangle
-and triangle rotation modifies their vertices about their centroids. Cube drawing
-rotates temporary copies about `Cube.centre`, using the stored absolute angles.
+## Files
 
-The combined transform is `Rz(phi) * Ry(theta) * Rx(psi)`: X rotation is applied
-first, then Y, then Z. Setting `psi` to zero recovers the previous Y-then-Z
-rotation. The cube controls edit these Euler angles; with other angles already
-set, changing one is not necessarily a rotation around a fixed screen axis.
-The rendering uses orthographic projection: x and y are drawn, z is omitted.
-Screen y increases downward, so positive Z rotation appears clockwise.
+| File | Responsibility |
+| --- | --- |
+| `include/vectors.h` | Geometry/container types and math declarations |
+| `src/vectors.c` | Triangle storage, matrix-vector multiplication, X/Z rotation matrices |
+| `include/shapes.h`, `src/shapes.c` | Cube mesh construction and projected triangle outlines |
+| `include/raster.h`, `src/raster.c` | One-pixel Bresenham lines, using `DrawPixel` |
+| `src/main.c` | Window, animation, transform/project/draw loop and cleanup |
+| `Makefile` | Compile all `src/*.c` and link raylib using pkg-config |
+| `tests/test_engine.c` | Headless regression tests and window/pixel stubs |
 
-The cube constructor now takes:
+Headers declare the shared types and functions; source files contain their
+implementations. The compiler builds each `.c` separately, and the linker combines
+those object files with raylib. A header include does not include a `.c` file.
 
-```c
-get_cube_from_centre(centre, width, phi, theta, psi, colour);
-```
+## Rendering pipeline
 
-For example, pass three zeros for an initially unrotated cube. A rotation value
-for the shape functions can be initialised as:
+For each frame, `main.c`:
 
-```c
-DoubleAngle3 angles = { .theta = 0, .phi = 0, .psi = 10 };
-```
+1. Advances a rotation angle using `GetFrameTime()` and builds zero-initialised
+   rotation matrices. Z rotation is followed by X rotation at half the speed.
+2. Copies each triangle out of the mesh. Original model vertices remain unchanged.
+3. Subtracts the cube centre `(0.5, 0.5, 0.5)` so rotation is about its centre.
+4. Rotates each point and adds 3 to z, placing the model in front of the camera.
+5. Projects the triangle, dividing by homogeneous w (which is depth for this
+   projection matrix).
+6. Maps projected x/y coordinates into window pixels.
+7. Calls `draw_triangle`, which sends three edges to `raster_draw_line`.
 
-All three fields must be initialised; omitted fields in a brace initialiser are
-zero-initialised automatically.
+The projection matrix uses `height / width` for its horizontal scale, a vertical
+field of view of 90 degrees, and near/far distances of 0.1 and 1000. Unspecified
+matrix elements must be zero. The tutorial stores translation in `m[3][0..2]`;
+do not mix that indexing with a differently laid-out matrix implementation.
 
-## Project files
+`MultiplyMatrixVector(input, &output, &matrix)` takes its input by value and
+writes through an output pointer, replacing the tutorial's C++ output reference.
+Its boolean return is false for an invalid divide or non-finite result; on failure
+it leaves the output unchanged. Passing the same variable as input and output
+is safe because the input was copied before writing.
 
-```text
-raylibProject/
-  Makefile                       Build instructions
-  include/raster.h               Your drawing module's public declarations
-  src/main.c                     Program entry point, window, frame loop
-  src/raster.c                   Your drawing module's implementations
-  include/shapes.h               Shape types and function declarations
-  src/shapes.c                   Shape drawing and three-axis rotation
-  include/vectors.h              Vector types and DoubleAngle3
-  src/vectors.c                  Dynamic integer vector functions
-  .vscode/c_cpp_properties.json   Editor C17 and header lookup settings
-  .vscode/tasks.json              Editor commands that invoke Make
-  build/                         Generated executable, .o and .d files
-```
+The low-level line API uses the order `(x0, y0, x1, y1, colour)`. Custom names are
+`raster_draw_line` and `draw_triangle`, avoiding raylib's `DrawLine` and
+`DrawTriangle`. The old rectangle, thick-line and separate X/Y-line APIs have been
+removed; all visible shape edges now come from `triangle` objects.
 
-The `src` and `include` directory names are conventions, not C requirements.
-The Makefile automatically finds `.c` files directly inside `src/`.
-All project source files use C, with Clang's `-std=c17` mode.
+## Scope and next steps
 
-## How a C program is built
+This is the Part 1 wireframe stage. Unlike the tutorial's rotation around the unit
+cube's corner, this demo rotates around its centre. It otherwise uses the same
+stages: rotation, forward translation, projection, screen mapping, rasterisation.
 
-1. **Preprocess:** resolve `#include`, macros, and conditional directives. For
-   example, `#include "raster.h"` makes its declarations available in `main.c`.
-2. **Compile:** compile each resulting translation unit separately. Here,
-   `src/main.c` becomes `build/main.o` and `src/raster.c` becomes `build/raster.o`.
-   These object files contain machine code, but some referenced functions still
-   need to be resolved.
-3. **Link:** combine the object files and link raylib to produce
-   `build/pixel_shapes`. The linker resolves `raster_put_pixel` from `raster.o`
-   and records the program's dependency on the installed raylib shared library.
-   macOS loads that library when the executable runs.
+The cube remains safely in front of the near plane under every rotation. A guard
+skips triangles with a vertex outside the near/far range; it is not proper plane
+clipping. The low-level rasteriser expects finite, reasonably bounded screen
+coordinates. The demo guarantees that for this cube; arbitrary large/offscreen
+models will need clipping before rasterisation.
 
-The Makefile runs these commands for you. `-Iinclude` tells the compiler where
-to find your headers; `-c` compiles without linking; `-o` names an output file.
-Warnings are enabled, and `-g -O0` keeps debugging straightforward.
-The generated `.d` files track included headers, so editing `raster.h` rebuilds
-the affected object files next time you run Make.
+For Part 2, add normals, back-face culling and lighting at the marked point after
+transformation and before projection; add depth sorting and filled triangle
+rasterisation after projection. The triangle container can already grow for model
+loading, but no OBJ loader, face filling, culling or lighting is implemented yet.
 
-## What headers do
+## Tutorial references
 
-`include/raster.h` contains this function **declaration**:
+- [Part 1 video](https://www.youtube.com/watch?v=ih20l3pJoeU)
+- [Part 2 video](https://www.youtube.com/watch?v=XgMWc6LumG4)
+- [Author's Part 1 source](https://github.com/OneLoneCoder/Javidx9/blob/master/ConsoleGameEngine/BiggerProjects/Engine3D/OneLoneCoder_olcEngine3D_Part1.cpp)
+- [Author's Part 2 source](https://github.com/OneLoneCoder/Javidx9/blob/master/ConsoleGameEngine/BiggerProjects/Engine3D/OneLoneCoder_olcEngine3D_Part2.cpp)
 
-```c
-void raster_put_pixel(int x, int y, Color color);
-```
-
-It tells the compiler the function's name, parameter types, and return type
-(`void` means no returned value). This lets `main.c` call the function with type
-checking without needing its implementation in the same file.
-
-`src/raster.c` contains the **definition**: the function body that calls
-`DrawPixel`. It includes its own header so the compiler can check that the
-definition agrees with the public declaration. `src/main.c` includes the header
-to use that interface. You do not include `raster.c`: compile it separately and
-link its object file.
-
-The `#ifndef RASTER_H` / `#define RASTER_H` / `#endif` lines are an **include
-guard**. They prevent the header's contents from being processed more than once
-within a translation unit. They do not prevent duplicate function definitions
-across separate `.c` files; ordinary public function bodies belong in `.c` files.
-
-The header itself includes `<raylib.h>` because its declaration uses raylib's
-`Color` type. This makes `raster.h` usable without requiring callers to include
-other headers in a particular order. Quoted includes first search relative to
-the including file, then configured include paths; angle brackets use configured
-system/library search paths. `-I` directories also participate in that search.
-
-## Where raylib fits
-
-Your functions choose which pixels belong to a shape. Raylib provides the window,
-graphics context, input/event handling, and the `DrawPixel` operation that displays
-each chosen pixel. `raster_put_pixel` is just a thin wrapper around that operation;
-the shape algorithms are yours to implement.
-
-There are two distinct parts of using raylib:
-
-- **Declarations:** `<raylib.h>` gives the compiler types such as `Color` and
-  declarations such as `InitWindow` and `DrawPixel`.
-- **Compiled library:** the installed `libraylib.dylib` supplies the function
-  implementations. Including the header alone does not link the library.
-
-The Makefile asks `pkg-config --cflags raylib` for the header search flags and
-`pkg-config --libs raylib` for the library search/link flags (`-L... -lraylib`).
-This uses the existing Homebrew installation without copying raylib into the
-project. The resulting executable depends on that installation.
-VS Code's header settings only help the editor: the Makefile controls the build.
-
-## Starting with the window
-
-Read `src/main.c` from top to bottom:
-
-1. `InitWindow` creates the window and graphics context.
-2. `SetTargetFPS(20)` sets a target frame rate.
-3. `while (!WindowShouldClose())` repeats until Escape or a close request.
-4. `BeginDrawing` starts drawing the frame. `ClearBackground` clears it.
-5. Put drawing calls after the clear and before `EndDrawing`.
-6. `EndDrawing` presents the frame and normally handles frame timing and input
-   polling. After the loop, `CloseWindow` releases the window and graphics context.
-
-The window uses screen coordinates: `(0, 0)` is the top-left, x increases right,
-and y increases down. For this window, integer pixel coordinates range from
-0 to 799 horizontally and 0 to 599 vertically. The screen is cleared each frame,
-so your shape functions must be called again each frame to keep shapes visible.
-These calls draw into a graphics buffer; they do not directly write to a physical
-display pixel. High-DPI display scaling can also affect that mapping.
-
-The current drawing section calls `draw_cube`. Its keyboard controls update the
-cube angles before the frame is drawn. To experiment with individual pixels,
-place a `DrawPixel` call between `ClearBackground` and `EndDrawing`.
-
-## Official references
-
-- [Basic window example (raylib 6.0)](https://github.com/raysan5/raylib/blob/6.0/examples/core/core_basic_window.c)
-- [Raylib API reference](https://www.raylib.com/cheatsheet/cheatsheet.html)
-- [Raylib macOS setup and pkg-config](https://github.com/raysan5/raylib/wiki/Working-on-macOS)
+The tutorial is by javidx9 / OneLoneCoder; this project adapts the concepts to C
+and raylib instead of its C++ console framework. The cube's face labels and vertex
+ordering are retained from the user's tutorial-based mesh.

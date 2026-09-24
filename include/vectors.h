@@ -1,9 +1,19 @@
 #ifndef VECTORS_H
 #define VECTORS_H
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdbool.h>
+#include <stddef.h>
 
+typedef struct {
+    float x, y, z;
+} vec3d;
+
+typedef struct {
+    vec3d p[3];
+} triangle;
+
+// A growable collection of triangles, not a mathematical vector.
+// Owns data: initialise once, then free once; do not shallow-copy its ownership.
 typedef struct {
     triangle *data;
     size_t size;
@@ -11,48 +21,35 @@ typedef struct {
 } TriVector;
 
 typedef struct {
-    int vec[2];
-} IntVec2;
-
-typedef struct {
-    int vec[3];
-} IntVec3;
-
-typedef struct {
-    int vec[4];
-} IntVec4;
-
-typedef struct {
-    double theta; // Y-axis rotation in degrees
-    double phi;   // Z-axis rotation in degrees
-    double psi;   // X-axis rotation in degrees
-} DoubleAngle3;
-
-typedef struct {
-    float x, y, z;
-} TriVec3;
-
-typedef struct {
-    TriVec3 p[3]; 
-} triangle;
-
-typedef struct {
-    TriVector tris;
-} Mesh;
+    float theta;
+    float phi;
+} PolarAngle;
 
 typedef struct {
     float m[4][4];
 } mat4x4;
 
 typedef struct {
-    float x, y, z;
-} vec3d;
+    vec3d pos;
+    PolarAngle angle;
+} myCamera;
 
 void vector_init(TriVector *vec);
-void vector_push(TriVector *vec, triangle obj_tri);
-triangle vector_get(TriVector *vec, size_t index);
+void vector_push(TriVector *vec, triangle value);
+triangle vector_get(const TriVector *vec, size_t index);
 void vector_free(TriVector *vec);
-int vector_size(TriVector *vec);
-void MultiplyMatrixVector(vec3d i, vec3d o, mat4x4 m);
+size_t vector_size(const TriVector *vec);
 
+// Tutorial matrix layout: translation is in m[3][0..2].
+// Writes through output; returns false if the homogeneous divide is invalid.
+// Input is copied, so MultiplyMatrixVector(v, &v, &matrix) is safe.
+bool MultiplyMatrixVector(vec3d input, vec3d *output, const mat4x4 *matrix);
+
+// Angles are radians. All unspecified matrix entries are zero-initialised.
+mat4x4 MakeRotationX(float radians);
+mat4x4 MakeRotationZ(float radians);
+mat4x4 MakeRotationY(float radians);
+mat4x4 MakeInverseRotationX(float radians);
+mat4x4 MakeInverseRotationZ(float radians);
+mat4x4 MakeInverseRotationY(float radians);
 #endif

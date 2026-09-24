@@ -1,238 +1,184 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-
-#include "vectors.h"
 #include "shapes.h"
 #include "raster.h"
 
-void draw_rect(Rect *rect);
-void rotate_rect(Rect *rect, DoubleAngle3 *angles);
-void rotate_vector(double vec[3], DoubleAngle3 *angles, double result[3]);
-void draw_triangle(Tri *obj);
-void rotate_triangle(Tri *obj, DoubleAngle3 *angles);
-Cube get_cube_from_centre(double c[3], double w, double phi, double theta, double psi, Color colour);
-void draw_cube(Cube *obj);
+#include <math.h>
 
-
-void draw_rect(Rect *rect)
+mesh get_cube(void)
 {
-    double *vec1 = rect->vec1;
-    double *vec2 = rect->vec2;
-    double *vec3 = rect->vec3;
-    double *vec4 = rect->vec4;
-    drawLine((int)round(vec1[0]), (int)round(vec2[0]), (int)round(vec1[1]), (int)round(vec2[1]), WHITE, 1);
-    drawLine((int)round(vec2[0]), (int)round(vec3[0]), (int)round(vec2[1]), (int)round(vec3[1]), WHITE, 1);
-    drawLine((int)round(vec3[0]), (int)round(vec4[0]), (int)round(vec3[1]), (int)round(vec4[1]), WHITE, 1);
-    drawLine((int)round(vec4[0]), (int)round(vec1[0]), (int)round(vec4[1]), (int)round(vec1[1]), WHITE, 1);
+    const triangle cube[12] = {
+        // SOUTH
+        { .p = {
+            {0.0f, 0.0f, 0.0f},
+            {0.0f, 1.0f, 0.0f},
+            {1.0f, 1.0f, 0.0f}
+        }},
+        { .p = {
+            {0.0f, 0.0f, 0.0f},
+            {1.0f, 1.0f, 0.0f},
+            {1.0f, 0.0f, 0.0f}
+        }},
+
+        // EAST
+        { .p = {
+            {1.0f, 0.0f, 0.0f},
+            {1.0f, 1.0f, 0.0f},
+            {1.0f, 1.0f, 1.0f}
+        }},
+        { .p = {
+            {1.0f, 0.0f, 0.0f},
+            {1.0f, 1.0f, 1.0f},
+            {1.0f, 0.0f, 1.0f}
+        }},
+
+        // NORTH
+        { .p = {
+            {1.0f, 0.0f, 1.0f},
+            {1.0f, 1.0f, 1.0f},
+            {0.0f, 1.0f, 1.0f}
+        }},
+        { .p = {
+            {1.0f, 0.0f, 1.0f},
+            {0.0f, 1.0f, 1.0f},
+            {0.0f, 0.0f, 1.0f}
+        }},
+
+        // WEST
+        { .p = {
+            {0.0f, 0.0f, 1.0f},
+            {0.0f, 1.0f, 1.0f},
+            {0.0f, 1.0f, 0.0f}
+        }},
+        { .p = {
+            {0.0f, 0.0f, 1.0f},
+            {0.0f, 1.0f, 0.0f},
+            {0.0f, 0.0f, 0.0f}
+        }},
+
+        // TOP
+        { .p = {
+            {0.0f, 1.0f, 0.0f},
+            {0.0f, 1.0f, 1.0f},
+            {1.0f, 1.0f, 1.0f}
+        }},
+        { .p = {
+            {0.0f, 1.0f, 0.0f},
+            {1.0f, 1.0f, 1.0f},
+            {1.0f, 1.0f, 0.0f}
+        }},
+
+        // BOTTOM
+        { .p = {
+            {1.0f, 0.0f, 1.0f},
+            {0.0f, 0.0f, 1.0f},
+            {0.0f, 0.0f, 0.0f}
+        }},
+        { .p = {
+            {1.0f, 0.0f, 1.0f},
+            {0.0f, 0.0f, 0.0f},
+            {1.0f, 0.0f, 0.0f}
+        }}
+    };
+    mesh cube_mesh;
+    vector_init(&cube_mesh.tris);
+    for (size_t i = 0; i < sizeof cube / sizeof cube[0]; i++) {
+        vector_push(&cube_mesh.tris, cube[i]);
+    }
+    return cube_mesh;
 }
 
-void rotate_rect(Rect *rect, DoubleAngle3 *angles)
+void draw_triangle(const triangle *obj, Color colour)
 {
-    double *vec1 = rect->vec1;
-    double *vec2 = rect->vec2;
-    double *vec3 = rect->vec3;
-    double *vec4 = rect->vec4;
-
-    // Centre points
-    double c[3] = {
-        (vec1[0] + vec2[0] + vec3[0] + vec4[0]) / 4.0,
-        (vec1[1] + vec2[1] + vec3[1] + vec4[1]) / 4.0,
-        (vec1[2] + vec2[2] + vec3[2] + vec4[2]) / 4.0
-    };
-
-    // centre rectangle about (0,0,0)
-    vec1[0] -= c[0];    vec1[1] -= c[1];    vec1[2] -= c[2];
-    vec2[0] -= c[0];    vec2[1] -= c[1];    vec2[2] -= c[2];
-    vec3[0] -= c[0];    vec3[1] -= c[1];    vec3[2] -= c[2];
-    vec4[0] -= c[0];    vec4[1] -= c[1];    vec4[2] -= c[2];
-
-    rotate_vector(vec1, angles, vec1);
-    rotate_vector(vec2, angles, vec2);
-    rotate_vector(vec3, angles, vec3);
-    rotate_vector(vec4, angles, vec4);
-
     for (int i = 0; i < 3; i++) {
-        vec1[i] += c[i];
-        vec2[i] += c[i];
-        vec3[i] += c[i];
-        vec4[i] += c[i];
+        vec3d start = obj->p[i];
+        vec3d end = obj->p[(i + 1) % 3];
+        raster_draw_line((int)roundf(start.x), (int)roundf(start.y),
+                         (int)roundf(end.x), (int)roundf(end.y), colour);
     }
 }
 
-void draw_triangle(Tri *obj) 
+void fill_top_flat_triangle(const triangle *obj, Color colour)
 {
-    double *vec1 = obj->vec1;
-    double *vec2 = obj->vec2;
-    double *vec3 = obj->vec3;
+    float invslope1 = (obj->p[2].x - obj->p[0].x) / (obj->p[2].y - obj->p[0].y);
+    float invslope2 = (obj->p[2].x - obj->p[1].x) / (obj->p[2].y - obj->p[1].y);
 
-    drawLine((int)round(vec1[0]), (int)round(vec2[0]), (int)round(vec1[1]), (int)round(vec2[1]), WHITE, 1);
-    drawLine((int)round(vec2[0]), (int)round(vec3[0]), (int)round(vec2[1]), (int)round(vec3[1]), WHITE, 1);
-    drawLine((int)round(vec3[0]), (int)round(vec1[0]), (int)round(vec3[1]), (int)round(vec1[1]), WHITE, 1);
-}
+    float curx1, curx2 = obj->p[2].x;
 
-void rotate_triangle(Tri *obj, DoubleAngle3 *angles)
-{
-    double *vec1 = obj->vec1;
-    double *vec2 = obj->vec2;
-    double *vec3 = obj->vec3;
-
-    double c[3] = {
-        (vec1[0] + vec2[0] + vec3[0]) / 3,
-        (vec1[1] + vec2[1] + vec3[1]) / 3,
-        (vec1[2] + vec2[2] + vec3[2]) / 3,
-    };
-
-    // centre triangle about (0,0,0)
-    vec1[0] -= c[0];    vec1[1] -= c[1];    vec1[2] -= c[2];
-    vec2[0] -= c[0];    vec2[1] -= c[1];    vec2[2] -= c[2];
-    vec3[0] -= c[0];    vec3[1] -= c[1];    vec3[2] -= c[2];
-
-    rotate_vector(vec1, angles, vec1);
-    rotate_vector(vec2, angles, vec2);
-    rotate_vector(vec3, angles, vec3);
-
-    // move triangle back
-    for (int i = 0; i < 3; i++){
-    vec1[i] += c[i];
-    vec2[i] += c[i];
-    vec3[i] += c[i];
+    for (int scanLineY = obj->p[2].y; scanLineY > obj->p[0].y; scanLineY--)
+    {
+        raster_draw_line((int)curx1, scanLineY, (int)curx2, scanLineY, colour);
+        curx1 -= invslope1;
+        curx2 -= invslope2;
     }
 }
 
-void draw_cube(Cube *obj)
+void fill_bottom_flat_triangle(const triangle *obj, Color colour)
 {
-    // ideal case has trivial shape
-    if (obj->phi == 0 && obj->theta == 0 && obj->psi == 0) {
-        drawLine(obj->vec1[0],obj->vec5[0],obj->vec1[1],obj->vec5[1], obj->colour, 1);
-        drawLine(obj->vec5[0],obj->vec7[0],obj->vec5[1],obj->vec7[1], obj->colour, 1);
-        drawLine(obj->vec7[0],obj->vec3[0],obj->vec7[1],obj->vec3[1], obj->colour, 1);
-        drawLine(obj->vec3[0],obj->vec1[0],obj->vec3[1],obj->vec1[1], obj->colour, 1);
+    float invslope1 = (obj->p[1].x - obj->p[0].x) / (obj->p[1].y - obj->p[0].y);
+    float invslope2 = (obj->p[2].x - obj->p[0].x) / (obj->p[2].y - obj->p[0].y);
+
+    float curx1, curx2 = obj->p[0].x;
+
+    for (int scanLineY = obj->p[0].y; scanLineY > obj->p[1].y; scanLineY--)
+    {
+        raster_draw_line((int)curx1, scanLineY, (int)curx2, scanLineY, colour);
+        curx1 += invslope1;
+        curx2 += invslope2;
+    }
+}
+
+void sort_vertices_ascending_by_y(triangle *obj)
+{
+    float vec1 = obj->p[0].y;
+    float vec2 = obj->p[1].y;
+    float vec3 = obj->p[2].y;
+    vec3d temp;
+    if (obj->p[0].y > obj->p[1].y) {
+        temp = obj->p[1];
+        obj->p[1] = obj->p[0];
+        obj->p[0] = temp;
+    }
+    if (obj->p[1].y > obj->p[2].y) {
+        temp = obj->p[2];
+        obj->p[2] = obj->p[1];
+        obj->p[1] = temp;
+    }
+}
+
+void fill_triangle(const triangle *obj, Color colour)
+{
+    sort_vertices_ascending_by_y(obj);
+
+    // check for trivial case of bottom-flat triangle
+    if (obj->p[1].y == obj->p[2].y) 
+    {
+        fill_bottom_flat_triangle(obj, colour);
     }
 
-    // else have to rotate coordinates
-    else {
-        // temp coordinates to work with
-        double tempv1[3];
-        double tempv2[3];
-        double tempv3[3];
-        double tempv4[3];
-        double tempv5[3];
-        double tempv6[3];
-        double tempv7[3];
-        double tempv8[3];
-
-        // define angle object for rotation function
-        DoubleAngle3 angle = {
-            .phi = obj->phi,
-            .theta = obj->theta,
-            .psi = obj->psi
+    // Check for trivial case of top-flat triangle
+    else if (obj->p[0].y == obj->p[1].y)
+    {
+        fill_top_flat_triangle(obj, colour);
+    }
+    else
+    {
+        vec3d v4 = {
+            .x = (int)(obj->p[0].x + ( (obj->p[1].y - obj->p[0].y) / (obj->p[2].y - obj->p[0].y) ) * (obj->p[2].x - obj->p[0].x)),
+            .y = obj->p[1].y,
+            .z = 0.0f
         };
 
-        for (int i = 0; i < 3; i++) {
-            tempv1[i] = obj->vec1[i] - obj->centre[i];
-            tempv2[i] = obj->vec2[i] - obj->centre[i];
-            tempv3[i] = obj->vec3[i] - obj->centre[i];
-            tempv4[i] = obj->vec4[i] - obj->centre[i];
-            tempv5[i] = obj->vec5[i] - obj->centre[i];
-            tempv6[i] = obj->vec6[i] - obj->centre[i];
-            tempv7[i] = obj->vec7[i] - obj->centre[i];
-            tempv8[i] = obj->vec8[i] - obj->centre[i];
-        }
+        triangle bottom = {
+            .p[0] = obj->p[0],
+            .p[1] = obj->p[1],
+            .p[2] = v4
+        };
+        triangle top = {
+            .p[0] = obj->p[1],
+            .p[1] = v4,
+            .p[2] = obj->p[2]
+        };
 
-        // rotate temp vectors
-        rotate_vector(tempv1, &angle, tempv1);
-        rotate_vector(tempv2, &angle, tempv2);
-        rotate_vector(tempv3, &angle, tempv3);
-        rotate_vector(tempv4, &angle, tempv4);
-        rotate_vector(tempv5, &angle, tempv5);
-        rotate_vector(tempv6, &angle, tempv6);
-        rotate_vector(tempv7, &angle, tempv7);
-        rotate_vector(tempv8, &angle, tempv8);
-
-        for (int i = 0; i < 3; i++) {
-            tempv1[i] += obj->centre[i];
-            tempv2[i] += obj->centre[i];
-            tempv3[i] += obj->centre[i];
-            tempv4[i] += obj->centre[i];
-            tempv5[i] += obj->centre[i];
-            tempv6[i] += obj->centre[i];
-            tempv7[i] += obj->centre[i];
-            tempv8[i] += obj->centre[i];
-        }
-
-        // draw lines from temp vectors
-        drawLine((int)round(tempv1[0]),(int)round(tempv2[0]),(int)round(tempv1[1]),(int)round(tempv2[1]),obj->colour,1);
-        drawLine((int)round(tempv1[0]),(int)round(tempv5[0]),(int)round(tempv1[1]),(int)round(tempv5[1]),obj->colour,1);
-        drawLine((int)round(tempv1[0]),(int)round(tempv3[0]),(int)round(tempv1[1]),(int)round(tempv3[1]),obj->colour,1);
-        drawLine((int)round(tempv8[0]),(int)round(tempv7[0]),(int)round(tempv8[1]),(int)round(tempv7[1]),obj->colour,1);
-        drawLine((int)round(tempv8[0]),(int)round(tempv4[0]),(int)round(tempv8[1]),(int)round(tempv4[1]),obj->colour,1);
-        drawLine((int)round(tempv8[0]),(int)round(tempv6[0]),(int)round(tempv8[1]),(int)round(tempv6[1]),obj->colour,1);
-        drawLine((int)round(tempv6[0]),(int)round(tempv5[0]),(int)round(tempv6[1]),(int)round(tempv5[1]),obj->colour,1);
-        drawLine((int)round(tempv6[0]),(int)round(tempv2[0]),(int)round(tempv6[1]),(int)round(tempv2[1]),obj->colour,1);
-        drawLine((int)round(tempv4[0]),(int)round(tempv3[0]),(int)round(tempv4[1]),(int)round(tempv3[1]),obj->colour,1);
-        drawLine((int)round(tempv4[0]),(int)round(tempv2[0]),(int)round(tempv4[1]),(int)round(tempv2[1]),obj->colour,1);
-        drawLine((int)round(tempv7[0]),(int)round(tempv5[0]),(int)round(tempv7[1]),(int)round(tempv5[1]),obj->colour,1);
-        drawLine((int)round(tempv7[0]),(int)round(tempv3[0]),(int)round(tempv7[1]),(int)round(tempv3[1]),obj->colour,1);
+        fill_bottom_flat_triangle(&bottom, colour);
+        fill_top_flat_triangle(&top, colour);
     }
 }
-
-Cube get_cube_from_centre(double c[3], double w, double phi, double theta, double psi, Color colour)
-{
-    Cube cube = {
-        .vec1 = { c[0]+w/2, c[1]+w/2, c[2]+w/2 },
-        .vec2 = { c[0]+w/2, c[1]+w/2, c[2]-w/2 },
-        .vec3 = { c[0]+w/2, c[1]-w/2, c[2]+w/2 },
-        .vec4 = { c[0]+w/2, c[1]-w/2, c[2]-w/2 },
-        .vec5 = { c[0]-w/2, c[1]+w/2, c[2]+w/2 },
-        .vec6 = { c[0]-w/2, c[1]+w/2, c[2]-w/2 },
-        .vec7 = { c[0]-w/2, c[1]-w/2, c[2]+w/2 },
-        .vec8 = { c[0]-w/2, c[1]-w/2, c[2]-w/2 },
-        .centre = {c[0], c[1], c[2]},
-        .phi = phi,
-        .theta = theta,
-        .psi = psi,
-        .colour = colour
-    };
-    return cube;
-}
-
-void rotate_vector(double vec[3], DoubleAngle3 *angles, double result[3]) 
-{
-    /*
-    Angles are in degrees. Apply X (psi), then Y (theta), then Z (phi).
-    For column vectors, the combined matrix is Rz(phi) * Ry(theta) * Rx(psi).
-    Screen projection uses x and y; input and output may share storage.
-    */
-    double theta_rad = angles -> theta * (PI / 180.0);
-    double phi_rad = angles -> phi * (PI / 180.0);
-    double psi_rad = angles -> psi * (PI / 180.0);
-
-    // precompute sine and cosine values
-    double cos_p = cos(phi_rad);
-    double sin_p = sin(phi_rad);
-    double cos_t = cos(theta_rad);
-    double sin_t = sin(theta_rad);
-    double cos_s = cos(psi_rad);
-    double sin_s = sin(psi_rad);
-
-    // Combined rotation about all three coordinate axes.
-    double R[3][3] = {
-        { cos_p*cos_t, cos_p*sin_t*sin_s - sin_p*cos_s, cos_p*sin_t*cos_s + sin_p*sin_s },
-        { sin_p*cos_t, sin_p*sin_t*sin_s + cos_p*cos_s, sin_p*sin_t*cos_s - cos_p*sin_s },
-        { -sin_t,     cos_t*sin_s,                     cos_t*cos_s }
-    };
-
-    // define initial vector
-    double v[3] = {vec[0], vec[1], vec[2]};
-
-    // perform the multiplication
-    for (int i = 0; i < 3; i++) {
-        result[i] = 0.0;
-        for (int j = 0; j < 3; j++) {
-            result[i] += R[i][j] * v[j];
-        }
-    }
-}
-
-
