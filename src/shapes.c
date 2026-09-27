@@ -97,7 +97,7 @@ void draw_triangle(const triangle *obj, Color colour)
     }
 }
 
-void fill_top_flat_triangle(const triangle *obj, Color colour)
+static void fill_top_flat_triangle(const triangle *obj, Color colour)
 {
     if ((obj->p[2].y - obj->p[0].y) != 0 && (obj->p[2].y - obj->p[1].y) != 0)
     {
@@ -131,7 +131,7 @@ void fill_top_flat_triangle(const triangle *obj, Color colour)
     }
 }
 
-void fill_bottom_flat_triangle(const triangle *obj, Color colour)
+static void fill_bottom_flat_triangle(const triangle *obj, Color colour)
 {
     if ((obj->p[1].y - obj->p[0].y) != 0 && (obj->p[2].y - obj->p[0].y) != 0)
     {
@@ -157,7 +157,7 @@ void fill_bottom_flat_triangle(const triangle *obj, Color colour)
     }
 }
 
-void sort_vertices_ascending_by_y(triangle *obj)
+static void sort_vertices_ascending_by_y(triangle *obj)
 {
     vec3d temp;
     if (obj->p[1].y > obj->p[2].y) {

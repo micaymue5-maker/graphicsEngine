@@ -34,6 +34,11 @@ typedef struct {
     PolarAngle angle;
 } myCamera;
 
+// Lowercase avoids raylib's unrelated Mesh type.
+typedef struct {
+    TriVector tris;
+} mesh;
+
 void vector_init(TriVector *vec);
 void vector_push(TriVector *vec, triangle value);
 triangle vector_get(const TriVector *vec, size_t index);
