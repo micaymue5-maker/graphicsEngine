@@ -6,19 +6,22 @@
 
 typedef struct {
     float x, y, z;
-} vec3d;
+} Vertex;
 
 typedef struct {
-    vec3d p[3];
-} triangle;
+    Vertex v1;
+    Vertex v2;
+    Vertex v3;
+    Vertex normal;
+} Face;
 
 // A growable collection of triangles, not a mathematical vector.
 // Owns data: initialise once, then free once; do not shallow-copy its ownership.
 typedef struct {
-    triangle *data;
+    Face *data;
     size_t size;
     size_t capacity;
-} TriVector;
+} Mesh;
 
 typedef struct {
     float theta;
@@ -30,20 +33,26 @@ typedef struct {
 } mat4x4;
 
 typedef struct {
-    vec3d pos;
+    mat4x4 x;
+    mat4x4 y;
+    mat4x4 z;
+} rotation_mats;
+
+typedef struct {
+    Vertex pos;
     PolarAngle angle;
 } myCamera;
 
-void vector_init(TriVector *vec);
-void vector_push(TriVector *vec, triangle value);
-triangle vector_get(const TriVector *vec, size_t index);
-void vector_free(TriVector *vec);
-size_t vector_size(const TriVector *vec);
+void vector_init(Mesh *vec);
+void vector_push(Mesh *vec, Face value);
+Face vector_get(const Mesh *vec, size_t index);
+void vector_free(Mesh *vec);
+size_t vector_size(const Mesh *vec);
 
 // Tutorial matrix layout: translation is in m[3][0..2].
 // Writes through output; returns false if the homogeneous divide is invalid.
 // Input is copied, so MultiplyMatrixVector(v, &v, &matrix) is safe.
-bool MultiplyMatrixVector(vec3d input, vec3d *output, const mat4x4 *matrix);
+bool MultiplyMatrixVector(Vertex input, Vertex *output, const mat4x4 *matrix);
 
 // Angles are radians. All unspecified matrix entries are zero-initialised.
 mat4x4 MakeRotationX(float radians);

@@ -1,7 +1,7 @@
 #ifndef RASTER_H
 #define RASTER_H
 
-#include <raylib.h>
+#include "raylib_compat.h"
 
 // One-pixel-wide Bresenham line, including both endpoints.
 // Screen coordinates: x increases right, y increases down.

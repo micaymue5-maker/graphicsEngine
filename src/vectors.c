@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void vector_init(TriVector *vec)
+void vector_init(Mesh *vec)
 {
     vec->size = 0;
     vec->capacity = 12;
@@ -16,7 +16,7 @@ void vector_init(TriVector *vec)
     }
 }
 
-void vector_push(TriVector *vec, triangle value)
+void vector_push(Mesh *vec, Face value)
 {
     if (vec->size == vec->capacity) {
         const size_t max_capacity = SIZE_MAX / sizeof *vec->data;
@@ -25,7 +25,7 @@ void vector_push(TriVector *vec, triangle value)
             exit(EXIT_FAILURE);
         }
         size_t capacity = vec->capacity == 0 ? 12 : vec->capacity * 2; //double capacity if full
-        triangle *data = realloc(vec->data, capacity * sizeof *data);
+        Face *data = realloc(vec->data, capacity * sizeof *data);
         if (data == NULL) {
             perror("Failed to grow triangle storage");
             exit(EXIT_FAILURE);
@@ -36,7 +36,7 @@ void vector_push(TriVector *vec, triangle value)
     vec->data[vec->size++] = value;
 }
 
-triangle vector_get(const TriVector *vec, size_t index)
+Face vector_get(const Mesh *vec, size_t index)
 {
     if (index >= vec->size) {
         fputs("Triangle index out of bounds\n", stderr);
@@ -45,18 +45,18 @@ triangle vector_get(const TriVector *vec, size_t index)
     return vec->data[index];
 }
 
-void vector_free(TriVector *vec)
+void vector_free(Mesh *vec)
 {
     free(vec->data);
-    *vec = (TriVector){0};
+    *vec = (Mesh){0};
 }
 
-size_t vector_size(const TriVector *vec)
+size_t vector_size(const Mesh *vec)
 {
     return vec->size;
 }
 
-bool MultiplyMatrixVector(vec3d input, vec3d *output, const mat4x4 *matrix)
+bool MultiplyMatrixVector(Vertex input, Vertex *output, const mat4x4 *matrix)
 {
     // Homogeneous input is (x, y, z, 1). For projection, w becomes depth.
     float w = input.x * matrix->m[0][3] + input.y * matrix->m[1][3]
@@ -65,7 +65,7 @@ bool MultiplyMatrixVector(vec3d input, vec3d *output, const mat4x4 *matrix)
         return false;
     }
 
-    vec3d result = {
+    Vertex result = {
         (input.x * matrix->m[0][0] + input.y * matrix->m[1][0]
          + input.z * matrix->m[2][0] + matrix->m[3][0]) / w,
         (input.x * matrix->m[0][1] + input.y * matrix->m[1][1]
@@ -79,6 +79,7 @@ bool MultiplyMatrixVector(vec3d input, vec3d *output, const mat4x4 *matrix)
     *output = result;
     return true;
 }
+
 
 mat4x4 MakeRotationX(float radians)
 {
